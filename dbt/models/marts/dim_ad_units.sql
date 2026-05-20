@@ -1,12 +1,12 @@
 {{
     config(
-        materialized='view'
+        materialized='table'
     )
 }}
 
 /*
-    Staging: ad_units
-    - Latest row per (publisher_id, ad_unit_id) (ReplacingMergeTree via FINAL)
+    Dimension: ad units (SCD Type 1).
+    Grain: one row per ad_unit_id.
 */
 
 select
@@ -19,4 +19,4 @@ select
     is_active,
     created_at,
     _loaded_at
-from {{ source('raw', 'ad_units') }} final
+from {{ ref('stg_ad_units') }}

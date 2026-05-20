@@ -1,4 +1,26 @@
-fix the makefile because docker-compose wont run
-installed make via choco 
-added source_schemas.py for generic data source adding
-updated ingest.py to import settings from source_schema and be incremental 
+Things done
+
+- fixed makefile for docker compose on windows
+- installed make (choco)
+
+Part 1 — pipeline
+- finished events loader (was stub)
+- load csv dims + redelivery overlay
+- truncate/reload events, redelivery wins last 3 days
+- source_schemas.py for table paths/columns
+- ingest.py uses shared loaders + row builders
+- checked counts/revenue vs raw files
+
+Part 2 — dbt
+- staging uses FINAL on dims
+- dim_publishers, dim_campaigns, dim_ad_units
+- fct_ad_events_daily (publisher timezone day)
+- fct_publisher_performance
+- tests pass (incl revenue matches raw)
+
+Part 3 — investigation
+- notebooks/revenue_investigation.ipynb (charts)
+- notebooks/revenue_integrity_findings.ipynb (7 findings + sql)
+
+Docs
+- DESIGN.md sections 1–3 filled in

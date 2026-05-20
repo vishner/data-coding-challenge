@@ -2,7 +2,9 @@ version: 2
 
 models:
   - name: stg_ad_events
-    description: Deduplicated and cleaned ad events.
+    description: >
+      Cleaned ad events with UTC and publisher-local event dates.
+      Grain at staging: one row per event_id (ingestion dedupes raw).
     columns:
       - name: event_id
         tests:

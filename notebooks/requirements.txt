@@ -1,0 +1,6 @@
+jupyter
+pandas
+matplotlib
+seaborn
+clickhouse-connect
+pyarrow

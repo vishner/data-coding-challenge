@@ -1,12 +1,12 @@
 {{
     config(
-        materialized='view'
+        materialized='table'
     )
 }}
 
 /*
-    Staging: publishers
-    - Latest row per publisher_id (ReplacingMergeTree via FINAL)
+    Dimension: publishers (SCD Type 1 — latest attributes from redelivery overlay).
+    Grain: one row per publisher_id.
 */
 
 select
@@ -20,4 +20,4 @@ select
     created_at,
     updated_at,
     _loaded_at
-from {{ source('raw', 'publishers') }} final
+from {{ ref('stg_publishers') }}

@@ -1,12 +1,12 @@
 {{
     config(
-        materialized='view'
+        materialized='table'
     )
 }}
 
 /*
-    Staging: campaigns
-    - Latest row per campaign_id (ReplacingMergeTree via FINAL)
+    Dimension: campaigns (SCD Type 1 — latest flight dates / budget from redelivery).
+    Grain: one row per campaign_id.
 */
 
 select
@@ -22,4 +22,4 @@ select
     targeting_countries,
     created_at,
     _loaded_at
-from {{ source('raw', 'campaigns') }} final
+from {{ ref('stg_campaigns') }}

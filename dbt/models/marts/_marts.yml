@@ -1,0 +1,80 @@
+version: 2
+
+models:
+  - name: dim_publishers
+    description: >
+      Publisher dimension, SCD Type 1 (latest redelivery attributes).
+      Grain: one row per publisher_id.
+    columns:
+      - name: publisher_id
+        description: Primary key.
+        tests:
+          - unique
+          - not_null
+      - name: publisher_name
+        tests:
+          - not_null
+      - name: timezone
+        description: IANA timezone used for publisher-local event_date in facts.
+
+  - name: dim_campaigns
+    description: >
+      Campaign dimension, SCD Type 1. Grain: one row per campaign_id.
+    columns:
+      - name: campaign_id
+        tests:
+          - unique
+          - not_null
+      - name: campaign_status
+        tests:
+          - accepted_values:
+              values: ['active', 'completed']
+
+  - name: dim_ad_units
+    description: "Ad unit dimension. Grain - one row per ad_unit_id."
+    columns:
+      - name: ad_unit_id
+        tests:
+          - unique
+          - not_null
+      - name: publisher_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_publishers')
+              field: publisher_id
+
+  - name: fct_ad_events_daily
+    description: >
+      Daily ad-serving metrics by publisher and publisher-local calendar date.
+      Grain: event_date × publisher_id. event_date is derived from event_timestamp
+      in the publisher's timezone (not UTC).
+    columns:
+      - name: event_date
+        description: Calendar date in the publisher's timezone.
+        tests:
+          - not_null
+      - name: publisher_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_publishers')
+              field: publisher_id
+      - name: impressions
+        description: Count of impression events.
+      - name: clicks
+        description: Count of click events.
+      - name: revenue_usd
+        description: Sum of revenue_usd on all event types.
+      - name: fill_rate
+        description: filled_events / total_events for the day.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - event_date
+            - publisher_id
+
+  - name: fct_publisher_performance
+    description: >
+      Publisher-day metrics joined to dim_publishers for reporting.
+      Grain: event_date × publisher_id.
