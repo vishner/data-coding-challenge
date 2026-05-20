@@ -6,12 +6,26 @@
 
 For each change to `dagster_project/assets/ingest.py` (or any other infrastructure code):
 
-- What was the original behaviour?
-- How did you discover the problem? (e.g. row count mismatch, distribution check, value comparison against the raw file)
-- What did you change?
-- How did you verify the fix?
+- What was the original behaviour?  - 
+Loaded only from data/raw/ (no redelivery). Dates/times sent as strings (can fail with clickhouse-connect).
+Asset only listed parquet files and set metadata STUB — load not implemented. No rows in raw.ad_events. implementation is functional, 
+added some option to import configuration / source_schemas.py to allow for easy dynamic csv loading 
 
-Be specific. "I made it idempotent" is not enough. "Re-running ingestion previously caused `raw.ad_events` to contain N copies of each redelivered event; I changed X to Y; running twice now produces the same downstream `fct_ad_events_daily.revenue_usd` sum (verified: $XXX)" is the level of specificity we expect.
+- How did you discover the problem? (e.g. row count mismatch, distribution check, value comparison against the raw file)
+Inspected data/raw/redelivery/events/ and compared 2026-03-22..24: 
+initial files ~6.5k rows each, redelivery ~3.1k, ~3k overlapping event_ids, different revenue sums. 
+Loading both would double-count recent days.
+
+- What did you change? 
+Implemented parquet load: _resolve_event_files() skips initial files for dates that exist in redelivery, then loads redelivery files. 
+TRUNCATE + full insert each run. _manifest_from_files() builds expected row count, distinct event_id, and revenue from disk; 
+asset raises if ClickHouse differs. 
+Schemas in source_schemas.py (AD_EVENTS).
+
+- How did you verify the fix?
+189,972 rows, 189,972 distinct event_ids, revenue 1879.099641 USD (manifest vs query on raw.ad_events). 
+Ran all four assets twice; same numbers on second run.
+
 
 ## 2) dbt — Design Choices
 

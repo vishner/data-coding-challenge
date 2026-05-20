@@ -1,0 +1,4 @@
+fix the makefile because docker-compose wont run
+installed make via choco 
+added source_schemas.py for generic data source adding
+updated ingest.py to import settings from source_schema and be incremental 

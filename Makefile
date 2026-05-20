@@ -1,7 +1,7 @@
 .PHONY: up down restart logs setup dbt-bootstrap dbt-deps dbt-run dbt-test dbt-compile dbt-shell clickhouse-client dagster clean help
 
 # Detect docker compose command (plugin vs standalone)
-DOCKER_COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
+DOCKER_COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo docker compose || echo docker-compose)
 
 # ---------------------------------------------------------------------------
 # Infrastructure
