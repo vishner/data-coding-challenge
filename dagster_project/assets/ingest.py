@@ -58,6 +58,17 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
+def _merge_csv_records(
+    initial: list[dict[str, str]],
+    redelivery: list[dict[str, str]],
+    merge_key: str,
+) -> list[dict[str, str]]:
+    """Overlay redelivery rows onto initial by merge_key (redelivery wins)."""
+    merged = {record[merge_key]: record for record in initial}
+    merged.update({record[merge_key]: record for record in redelivery})
+    return list(merged.values())
+
+
 def _insert_rows(
     client: Any,
     table: str,
@@ -77,7 +88,7 @@ def _load_csv_source(
     clickhouse: ClickHouseResource,
     source: CsvSource,
     build_rows: Callable[[list[dict[str, str]]], list[tuple[Any, ...]]],
-) -> tuple[int, int, bool]:
+) -> tuple[int, int, bool, int]:
     initial_path = RAW_ROOT / source.initial_file
     redelivery_path = (
         REDELIVERY_ROOT / source.redelivery_file
@@ -90,18 +101,27 @@ def _load_csv_source(
     if redelivery_path and redelivery_path.exists():
         redelivery_records = _read_csv(redelivery_path)
 
+    if redelivery_records:
+        records = _merge_csv_records(
+            initial_records, redelivery_records, source.merge_key
+        )
+    else:
+        records = initial_records
+
     clickhouse.execute(f"TRUNCATE TABLE {source.table}")
-    initial_rows = build_rows(initial_records)
-    redelivery_rows = build_rows(redelivery_records) if redelivery_records else []
+    rows = build_rows(records)
     columns = list(source.insert_columns)
 
     with clickhouse.get_client() as client:
-        if initial_rows:
-            _insert_rows(client, source.table, initial_rows, columns)
-        if redelivery_rows:
-            _insert_rows(client, source.table, redelivery_rows, columns)
+        if rows:
+            _insert_rows(client, source.table, rows, columns)
 
-    return len(initial_rows), len(redelivery_rows), bool(redelivery_records)
+    return (
+        len(initial_records),
+        len(redelivery_records),
+        bool(redelivery_records),
+        len(rows),
+    )
 
 
 def _resolve_event_files(
@@ -241,12 +261,14 @@ def _csv_metadata(
     initial_count: int,
     redelivery_count: int,
     redelivery_applied: bool,
+    merged_count: int,
 ) -> dict[str, MetadataValue]:
     return {
         "table": MetadataValue.text(source.table),
         "initial_row_count": MetadataValue.int(initial_count),
         "redelivery_row_count": MetadataValue.int(redelivery_count),
         "redelivery_overlay": MetadataValue.bool(redelivery_applied),
+        "merged_row_count": MetadataValue.int(merged_count),
     }
 
 
@@ -261,13 +283,18 @@ def raw_publishers(
     clickhouse: ClickHouseResource,
 ) -> None:
     """Load publishers.csv into raw.publishers."""
-    initial, redelivery, applied = _load_csv_source(
+    initial, redelivery, applied, merged = _load_csv_source(
         clickhouse, PUBLISHERS, _publisher_rows
     )
     context.log.info(
-        "publishers: %d initial rows, %d redelivery rows", initial, redelivery
+        "publishers: %d initial, %d redelivery, %d merged",
+        initial,
+        redelivery,
+        merged,
     )
-    context.add_output_metadata(_csv_metadata(PUBLISHERS, initial, redelivery, applied))
+    context.add_output_metadata(
+        _csv_metadata(PUBLISHERS, initial, redelivery, applied, merged)
+    )
 
 
 @asset(group_name="ingestion")
@@ -276,13 +303,18 @@ def raw_campaigns(
     clickhouse: ClickHouseResource,
 ) -> None:
     """Load campaigns_export.csv into raw.campaigns."""
-    initial, redelivery, applied = _load_csv_source(
+    initial, redelivery, applied, merged = _load_csv_source(
         clickhouse, CAMPAIGNS, _campaign_rows
     )
     context.log.info(
-        "campaigns: %d initial rows, %d redelivery rows", initial, redelivery
+        "campaigns: %d initial, %d redelivery, %d merged",
+        initial,
+        redelivery,
+        merged,
     )
-    context.add_output_metadata(_csv_metadata(CAMPAIGNS, initial, redelivery, applied))
+    context.add_output_metadata(
+        _csv_metadata(CAMPAIGNS, initial, redelivery, applied, merged)
+    )
 
 
 @asset(group_name="ingestion")
@@ -291,13 +323,18 @@ def raw_ad_units(
     clickhouse: ClickHouseResource,
 ) -> None:
     """Load ad_units.csv into raw.ad_units."""
-    initial, redelivery, applied = _load_csv_source(
+    initial, redelivery, applied, merged = _load_csv_source(
         clickhouse, AD_UNITS, _ad_unit_rows
     )
     context.log.info(
-        "ad_units: %d initial rows, %d redelivery rows", initial, redelivery
+        "ad_units: %d initial, %d redelivery, %d merged",
+        initial,
+        redelivery,
+        merged,
     )
-    context.add_output_metadata(_csv_metadata(AD_UNITS, initial, redelivery, applied))
+    context.add_output_metadata(
+        _csv_metadata(AD_UNITS, initial, redelivery, applied, merged)
+    )
 
 
 # ---------------------------------------------------------------------------

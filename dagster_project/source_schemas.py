@@ -13,6 +13,7 @@ class CsvSource:
     table: str
     initial_file: str
     redelivery_file: str | None
+    merge_key: str
     insert_columns: tuple[str, ...]
 
 
@@ -31,6 +32,7 @@ PUBLISHERS = CsvSource(
     table="raw.publishers",
     initial_file="publishers.csv",
     redelivery_file="publishers.csv",
+    merge_key="publisher_id",
     insert_columns=(
         "publisher_id",
         "publisher_name",
@@ -48,6 +50,7 @@ CAMPAIGNS = CsvSource(
     table="raw.campaigns",
     initial_file="campaigns/campaigns_export.csv",
     redelivery_file="campaigns/campaigns_export.csv",
+    merge_key="campaign_id",
     insert_columns=(
         "campaign_id",
         "campaign_name",
@@ -67,6 +70,7 @@ AD_UNITS = CsvSource(
     table="raw.ad_units",
     initial_file="ad_units.csv",
     redelivery_file="ad_units.csv",
+    merge_key="ad_unit_id",
     insert_columns=(
         "ad_unit_id",
         "publisher_id",
